@@ -10,15 +10,17 @@ public:
     PlaylistDLL(): head(nullptr) , size(0) {}
     ~PlaylistDLL(){
         if (head == nullptr) return;
-
+        
+        Node* tail = head->prev;
+        tail->next = nullptr;
+        
         Node* current = head;
-        Node* delete_node;
-        while(current -> next != head){
-            delete_node = current;
-            current = current -> next;
-            delete delete_node;
+        while(current != nullptr){
+            Node* toDelete = current;
+            current = current->next;
+            delete toDelete;
         }
-        delete head;
+        head = nullptr;
     }
 
     void addSong(Song* song, int position);

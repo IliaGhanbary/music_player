@@ -1,0 +1,6 @@
+MY_OBJECT_FILES/main.o: MY_SOURCE_FILES/main.cpp \
+ MY_HEADER_FILES/MusicPlayer.h MY_HEADER_FILES/Playlist.h \
+ MY_HEADER_FILES/Helper.h
+MY_HEADER_FILES/MusicPlayer.h:
+MY_HEADER_FILES/Playlist.h:
+MY_HEADER_FILES/Helper.h:
