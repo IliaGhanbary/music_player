@@ -8,7 +8,7 @@ OBJ_FILES := $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SRC_FILES))
 TARGET ?= Project1.exe
 
 CXX := g++
-CXXFLAGS := -I$(HEAD_DIR) -Wall -Wextra
+CXXFLAGS := -I$(HEAD_DIR) -Wall -Wextra -MMD -MP
 
 all: $(TARGET)
 
@@ -21,7 +21,8 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
 $(OBJ_DIR):
 	@if not exist "$(OBJ_DIR)" mkdir "$(OBJ_DIR)"
 
-
 clean:
-	@rm -f $(OBJ_FILES) $(TARGET)
+	@rm -f $(OBJ_FILES) $(OBJ_DIR)/*.d $(TARGET)
 .PHONY: all clean
+
+-include $(OBJ_FILES:.o=.d)

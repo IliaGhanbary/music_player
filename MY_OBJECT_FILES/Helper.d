@@ -1,0 +1,3 @@
+MY_OBJECT_FILES/Helper.o: MY_SOURCE_FILES/Helper.cpp \
+ MY_HEADER_FILES/Helper.h
+MY_HEADER_FILES/Helper.h:
