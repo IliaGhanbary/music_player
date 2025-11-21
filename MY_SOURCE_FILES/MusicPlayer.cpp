@@ -1,11 +1,11 @@
 #include "MusicPlayer.h"
 
 MusicPlayer::MusicPlayer() : currentlyPlaying(nullptr) {
-    allSongs.push_back(new Song("track 10", "artist B"));
-    allSongs.push_back(new Song("track 2", "artist D"));
-    allSongs.push_back(new Song("track 5", "artist A"));
-    allSongs.push_back(new Song("track 1", "artist C"));
-    allSongs.push_back(new Song("track 8", "artist E"));
+    allSongs.push_back(new Song("My Way Of Life ", "Frank Sinatra"));
+    allSongs.push_back(new Song("The World We Knew", "Frank Sinatra"));
+    allSongs.push_back(new Song("Hopelessly Devoted To You", "Olivia Newton-John"));
+    allSongs.push_back(new Song("Save Your Tears", "The Weekend"));
+    allSongs.push_back(new Song("A Man Without Love", "Engelbert"));
 }
 
 MusicPlayer::~MusicPlayer() {
@@ -20,6 +20,11 @@ MusicPlayer::~MusicPlayer() {
 void MusicPlayer::clearInputStream() {
     cin.clear();
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
+}
+
+void MusicPlayer::pauseForMessage() {
+    cout << Color::DIM << "\nPress Enter to continue..." << Color::RESET;
+    cin.get();
 }
 
 int MusicPlayer::getValidInteger(const string& prompt) {
@@ -63,7 +68,7 @@ Playlist* MusicPlayer::findPlaylist(const string& name) {
     return nullptr;
 }
 
-void MusicPlayer::playNextFromPlaylist(PlaybackState* state) {
+void MusicPlayer::playNextFromPlaylist(PlaybackState* state, bool resume) {
     Playlist* playlist = static_cast<Playlist*>(state->source);
     
     if (playlist->song_playlist.head == nullptr) {
@@ -72,39 +77,41 @@ void MusicPlayer::playNextFromPlaylist(PlaybackState* state) {
         playbackStack.pop();
         if (!playbackStack.empty()) {
             PlaybackState* nextState = playbackStack.top();
-            if (nextState->type == PLAYLIST_TYPE) playNextFromPlaylist(nextState);
-            else playNextFromQueue(nextState);
+            if (nextState->type == PLAYLIST_TYPE) playNextFromPlaylist(nextState, true); 
+            else playNextFromQueue(nextState, true); 
         }
         return;
     }
 
-    if (state->currentNode == nullptr) state->currentNode = playlist->song_playlist.head;
-    else state->currentNode = state->currentNode->next;
+    if (!resume) {
+        if (state->currentNode == nullptr) state->currentNode = playlist->song_playlist.head;
+        else state->currentNode = state->currentNode->next;
 
-    int index = 0;
-    Node* temp = playlist->song_playlist.head;
-    do {
-        if (temp == state->currentNode) break;
-        index++;
-        temp = temp->next;
-    } while (temp != playlist->song_playlist.head);
-    
-    bool allPlayed = true;
-    for (bool flag : state->playedFlags) {
-        if (!flag) { allPlayed = false; break; }
-    }
-    
-    if (index < (int)state->playedFlags.size()) state->playedFlags[index] = true;
+        int index = 0;
+        Node* temp = playlist->song_playlist.head;
+        do {
+            if (temp == state->currentNode) break;
+            index++;
+            temp = temp->next;
+        } while (temp != playlist->song_playlist.head);
+        
+        bool allPlayed = true;
+        for (bool flag : state->playedFlags) {
+            if (!flag) { allPlayed = false; break; }
+        }
+        
+        if (index < (int)state->playedFlags.size()) state->playedFlags[index] = true;
 
-    if (allPlayed) {
-        delete playbackStack.top();
-        playbackStack.pop();
-        if (!playbackStack.empty()) {
-            PlaybackState* nextState = playbackStack.top();
-            if (nextState->type == PLAYLIST_TYPE) playNextFromPlaylist(nextState);
-            else playNextFromQueue(nextState);
-        } else currentlyPlaying = nullptr;
-        return;
+        if (allPlayed) {
+            delete playbackStack.top();
+            playbackStack.pop();
+            if (!playbackStack.empty()) {
+                PlaybackState* nextState = playbackStack.top();
+                if (nextState->type == PLAYLIST_TYPE) playNextFromPlaylist(nextState, true);
+                else playNextFromQueue(nextState, true);
+            } else currentlyPlaying = nullptr;
+            return;
+        }
     }
     
     currentlyPlaying = state->currentNode->song;
@@ -112,28 +119,51 @@ void MusicPlayer::playNextFromPlaylist(PlaybackState* state) {
     currentSourceName = playlist->name;
 }
 
-void MusicPlayer::playNextFromQueue(PlaybackState* state) {
-    if (state->queueCopy == nullptr || state->queueCopy->empty()) {
+void MusicPlayer::playNextFromQueue(PlaybackState* state, bool resume) {
+    if (songQueue.empty()) {
         delete playbackStack.top();
         playbackStack.pop();
         if (!playbackStack.empty()) {
             PlaybackState* nextState = playbackStack.top();
-            if (nextState->type == PLAYLIST_TYPE) playNextFromPlaylist(nextState);
-            else playNextFromQueue(nextState);
+            if (nextState->type == PLAYLIST_TYPE) playNextFromPlaylist(nextState, true);  
+            else playNextFromQueue(nextState, true); 
         } else currentlyPlaying = nullptr;
         return;
     }
-    currentlyPlaying = state->queueCopy->front();
-    state->queueCopy->pop();
+    
+    if (!resume) {
+        songQueue.pop();
+        if (songQueue.empty()) {
+            delete playbackStack.top();
+            playbackStack.pop();
+            if (!playbackStack.empty()) {
+                PlaybackState* nextState = playbackStack.top();
+                if (nextState->type == PLAYLIST_TYPE) playNextFromPlaylist(nextState, true);
+                else playNextFromQueue(nextState, true);
+            } else currentlyPlaying = nullptr;
+            return;
+        }
+    }
+    
+    currentlyPlaying = songQueue.front();
     currentSourceType = QUEUE_TYPE;
     currentSourceName = "queue";
+}
+
+void MusicPlayer::startQueuePlayback() {
+    if (songQueue.empty()) return;
+    PlaybackState* newState = new PlaybackState(QUEUE_TYPE, nullptr, nullptr, 0);
+    playbackStack.push(newState);
+    playNextFromQueue(newState, true);
+    cout << Color::GREEN << "▶ Now playing from queue" << Color::RESET << endl;
+    pauseForMessage();
 }
 
 void MusicPlayer::handleSkipNext() {
     if (!currentlyPlaying || playbackStack.empty()) return;
     PlaybackState* currentState = playbackStack.top();
-    if (currentState->type == QUEUE_TYPE) playNextFromQueue(currentState);
-    else playNextFromPlaylist(currentState);
+    if (currentState->type == QUEUE_TYPE) playNextFromQueue(currentState, false);
+    else playNextFromPlaylist(currentState, false);
 }
 
 void MusicPlayer::handleSkipPrev() {
@@ -166,8 +196,8 @@ void MusicPlayer::handleSkipPrev() {
         playbackStack.pop();
         if (!playbackStack.empty()) {
             PlaybackState* nextState = playbackStack.top();
-            if (nextState->type == PLAYLIST_TYPE) playNextFromPlaylist(nextState);
-            else playNextFromQueue(nextState);
+            if (nextState->type == PLAYLIST_TYPE) playNextFromPlaylist(nextState, true);
+            else playNextFromQueue(nextState, true);
         } else currentlyPlaying = nullptr;
         return;
     }
@@ -285,9 +315,11 @@ void MusicPlayer::songDetailsPage(Song* song) {
                     playlistPage(containingPlaylists[plChoice - 1]);
                 } else {
                     cout << Color::RED << "⚠ Please enter a valid number (1-" << containingPlaylists.size() << ")" << Color::RESET << endl;
+                    pauseForMessage();
                 }
             } catch (...) {
                 cout << Color::RED << "⚠ Please enter a valid integer" << Color::RESET << endl;
+                pauseForMessage();
             }
         }
     }
@@ -301,10 +333,12 @@ void MusicPlayer::addSongToPlaylist(Song* song) {
     Playlist* playlist = findPlaylist(playlistName);
     if (playlist == nullptr) {
         cout << Color::RED << "✗ Playlist not found" << Color::RESET << endl;
+        pauseForMessage();
         return;
     }
     if (playlist->song_playlist.contains(song)) {
         cout << Color::YELLOW << "⚠ Song already in playlist" << Color::RESET << endl;
+        pauseForMessage();
         return;
     }
     
@@ -323,11 +357,13 @@ void MusicPlayer::addSongToPlaylist(Song* song) {
     
     playlist->song_playlist.addSong(song, position);
     cout << Color::GREEN << "✓ Song added to playlist!" << Color::RESET << endl;
+    pauseForMessage();
 }
 
 void MusicPlayer::addSongToQueue(Song* song) {
     songQueue.push(song);
     cout << Color::GREEN << "✓ Song added to queue!" << Color::RESET << endl;
+    pauseForMessage();
 }
 
 void MusicPlayer::playlistsPage() {
@@ -344,7 +380,7 @@ void MusicPlayer::playlistsPage() {
             }
         }
         printDivider();
-        printMenuItem("+", "Create new playlist", Color::GREEN);
+        printMenuItem("-1", "Create new playlist", Color::GREEN);
         printMenuItem("0", "Back", Color::RED);
         
         cout << "\n" << Color::BOLD << "Select: " << Color::RESET;
@@ -355,7 +391,7 @@ void MusicPlayer::playlistsPage() {
         if (input == ">") handleSkipNext();
         else if (input == "<") handleSkipPrev();
         else if (input == "0") return;
-        else if (input == "+" || input == "-1") createNewPlaylist();
+        else if (input == "-1") createNewPlaylist();
         else {
             try {
                 int choice = stoi(input);
@@ -375,6 +411,7 @@ void MusicPlayer::createNewPlaylist() {
         } else {
             playlists.push_back(new Playlist(name));
             cout << Color::GREEN << "✓ Playlist \"" << name << "\" created!" << Color::RESET << endl;
+            pauseForMessage();
             return;
         }
     }
@@ -396,8 +433,8 @@ void MusicPlayer::playlistPage(Playlist* playlist) {
         }
         
         cout << "\n";
-        printMenuItem("▶", "Play playlist", Color::GREEN);
-        printMenuItem("-", "Delete a song", Color::YELLOW);
+        printMenuItem("-2", "Play playlist", Color::GREEN);
+        printMenuItem("-1", "Delete a song", Color::YELLOW);
         printDivider();
         printMenuItem("0", "Back", Color::RED);
         
@@ -409,8 +446,8 @@ void MusicPlayer::playlistPage(Playlist* playlist) {
         if (input == ">") handleSkipNext();
         else if (input == "<") handleSkipPrev();
         else if (input == "0") return;
-        else if (input == "▶" || input == "-2") startPlaylistPlayback(playlist);
-        else if (input == "-" || input == "-1") deleteSongFromPlaylist(playlist);
+        else if (input == "-2") startPlaylistPlayback(playlist);
+        else if (input == "-1") deleteSongFromPlaylist(playlist);
         else {
             try {
                 int choice = stoi(input);
@@ -438,8 +475,9 @@ void MusicPlayer::startPlaylistPlayback(Playlist* playlist) {
     newState->currentNode = startNode->prev;
     
     playbackStack.push(newState);
-    playNextFromPlaylist(newState);
+    playNextFromPlaylist(newState, false);
     cout << Color::GREEN << "▶ Now playing from \"" << playlist->name << "\"" << Color::RESET << endl;
+    pauseForMessage();
 }
 
 void MusicPlayer::deleteSongFromPlaylist(Playlist* playlist) {
@@ -471,6 +509,7 @@ void MusicPlayer::deleteSongFromPlaylist(Playlist* playlist) {
     
     playlist->song_playlist.removeSong(position);
     cout << Color::GREEN << "✓ Song deleted" << Color::RESET << endl;
+    pauseForMessage();
     if (needsAutoSkip) handleSkipNext();
 }
 
@@ -492,7 +531,7 @@ void MusicPlayer::queuePage() {
         }
         
         cout << "\n";
-        printMenuItem("▶", "Play queue", Color::GREEN);
+        printMenuItem("-1", "Play queue", Color::GREEN);
         printDivider();
         printMenuItem("0", "Back", Color::RED);
         
@@ -504,7 +543,7 @@ void MusicPlayer::queuePage() {
         if (input == ">") handleSkipNext();
         else if (input == "<") handleSkipPrev();
         else if (input == "0") return;
-        else if (input == "▶" || input == "-1") startQueuePlayback();
+        else if (input == "-1") startQueuePlayback();
         else {
             try {
                 int choice = stoi(input);
@@ -518,13 +557,4 @@ void MusicPlayer::queuePage() {
             } catch (...) {}
         }
     }
-}
-
-void MusicPlayer::startQueuePlayback() {
-    if (songQueue.empty()) return;
-    PlaybackState* newState = new PlaybackState(QUEUE_TYPE, nullptr, nullptr, 0);
-    newState->queueCopy = new queue<Song*>(songQueue);
-    playbackStack.push(newState);
-    playNextFromQueue(newState);
-    cout << Color::GREEN << "▶ Now playing from queue" << Color::RESET << endl;
 }

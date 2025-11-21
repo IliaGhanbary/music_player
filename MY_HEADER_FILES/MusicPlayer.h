@@ -42,12 +42,13 @@ private:
     void displayCurrentlyPlaying();
     void handleSkipNext();
     void handleSkipPrev();
-    void playNextFromPlaylist(PlaybackState* state);
-    void playNextFromQueue(PlaybackState* state);
+    void playNextFromPlaylist(PlaybackState* state, bool resume = false);
+    void playNextFromQueue(PlaybackState* state, bool resume = false);
     void checkAndPopCompletedPlayback();
     Playlist* findPlaylist(const string& name);
     int getValidInteger(const string& prompt);
     void clearInputStream();
+    void pauseForMessage();
     
 public:
     MusicPlayer();

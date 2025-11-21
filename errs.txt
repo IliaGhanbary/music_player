@@ -1,0 +1,4 @@
+MY_SOURCE_FILES/MusicPlayer.cpp: In member function ‘void MusicPlayer::playNextFromQueue(PlaybackState*, bool)’:
+MY_SOURCE_FILES/MusicPlayer.cpp:122:52: warning: unused parameter ‘state’ [-Wunused-parameter]
+  122 | void MusicPlayer::playNextFromQueue(PlaybackState* state, bool resume) {
+      |                                     ~~~~~~~~~~~~~~~^~~~~
